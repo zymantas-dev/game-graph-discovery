@@ -14,3 +14,7 @@ Open http://127.0.0.1:5189. No credentials are required for the curated demo. Se
 Start by searching for a game you love, then select neighboring games, switch relation filters, save games, and compare Observatory / Field Notes / Arcade Blueprint in the appearance selector. The map is capped at 60 nodes; Start fresh returns to the empty first-game picker.
 
 Read [agent instructions](AGENTS.md), [constitution](CONSTITUTION.md), [goals](docs/GOALS.md), [stack and sources](docs/STACK.md), and [design variations](docs/DESIGN.md).
+
+## Deploying with live data
+
+Do not set `VITE_RAWG_API_KEY` in production: Vite inlines `VITE_` variables into the public bundle. Deploy to Vercel and set `RAWG_API_KEY` as a server-side environment variable instead. The app detects `/api/rawg` ([api/rawg.js](api/rawg.js), an allow-listed read-only proxy with edge caching) and switches from the curated demo to live RAWG data automatically; without the variable it stays on the curated demo.

@@ -25,7 +25,18 @@ function loadSaved(): Game[] {
   try { const value = JSON.parse(localStorage.getItem('thread-saved-v1') ?? '[]'); return Array.isArray(value) ? value.filter(g => typeof g?.id === 'string' && typeof g?.name === 'string' && Array.isArray(g?.attributes)) : []; } catch { return []; }
 }
 function App() {
+  const [proxyLive, setProxyLive] = useState(false);
   const [provider, setProvider] = useState(() => createProvider(configuredRawgKey));
+  const defaultProvider = () => createProvider(configuredRawgKey, { proxy: proxyLive });
+  useEffect(() => {
+    if (configuredRawgKey) return;
+    // Production serves live data through api/rawg.js; plain `vite dev` has no such route.
+    void fetch('/api/rawg?path=games&page_size=1').then(response => {
+      if (!response.ok || !response.headers.get('content-type')?.includes('json')) return;
+      setProxyLive(true);
+      setProvider(createProvider('', { proxy: true }));
+    }).catch(() => {});
+  }, []);
   const [nodes, setNodes] = useState<GameNode[]>([]);
   const nodesRef = useRef<GameNode[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -136,7 +147,7 @@ function App() {
     <div className="feedback" role="status" aria-live="polite">{error ? <><span className="error">{error}</span><button onClick={() => selected ? void explore(selected) : reset()}>Retry</button></> : <><span className={busy ? 'status-dot pulsing' : 'status-dot'}/>{busy ? 'Finding your next connection…' : status}</>}</div>
     {selected && <section className="trail" aria-label="Exploration trail"><span>YOUR TRAIL</span><div>{trail.map((game, index) => <React.Fragment key={game.id}>{index > 0 && <span className="trail-arrow">→</span>}<button disabled={busy} className={game.id === selected.id ? 'current' : ''} onClick={() => void explore(game)}>{game.name}</button></React.Fragment>)}</div><button className="clear-trail" disabled={busy} onClick={reset}>Start fresh<RotateCcw size={13}/></button></section>}
     <footer><span>Made for the joy of getting lost.</span><div><label htmlFor="appearance">DESIGN</label><select id="appearance" value={theme} onChange={e => setTheme(e.target.value)}><option value="observatory">01 / Observatory</option><option value="field-notes">02 / Field Notes</option><option value="blueprint">03 / Arcade Blueprint</option></select><a href="https://rawg.io" target="_blank" rel="noreferrer">{provider.live ? 'Data by RAWG' : 'Powered by curiosity · RAWG ready'}<ArrowUpRight size={12}/></a></div></footer></main>
-    <dialog ref={dialog} onClose={() => setKeyInput('')}><div className="dialog-heading"><h2>Connect your worlds.</h2><button aria-label="Close RAWG settings" onClick={() => dialog.current?.close()}><X size={20}/></button></div><p>Use a temporary key for this tab, or configure <code>VITE_RAWG_API_KEY</code> in <code>.env.local</code> to connect automatically whenever the demo starts.</p><form onSubmit={e => { e.preventDefault(); if (!keyInput.trim()) return; setProvider(createProvider(keyInput.trim())); setKeyInput(''); updateNodes([]); setConnections([]); dialog.current?.close(); }}><label htmlFor="rawg-key">Temporary RAWG API key</label><input id="rawg-key" type="password" autoComplete="off" value={keyInput} onChange={e => setKeyInput(e.target.value)} required/><button className="expand-button" type="submit">Connect for this tab<ArrowUpRight size={16}/></button></form><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">Get a key from RAWG ↗</a><button className="demo-button" onClick={() => { setProvider(createProvider(configuredRawgKey)); dialog.current?.close(); }}>{configuredRawgKey ? 'Use configured API key' : 'Continue with curated demo'}</button></dialog>
+    <dialog ref={dialog} onClose={() => setKeyInput('')}><div className="dialog-heading"><h2>Connect your worlds.</h2><button aria-label="Close RAWG settings" onClick={() => dialog.current?.close()}><X size={20}/></button></div><p>Use a temporary key for this tab, or configure <code>VITE_RAWG_API_KEY</code> in <code>.env.local</code> to connect automatically whenever the demo starts.</p><form onSubmit={e => { e.preventDefault(); if (!keyInput.trim()) return; setProvider(createProvider(keyInput.trim())); setKeyInput(''); updateNodes([]); setConnections([]); dialog.current?.close(); }}><label htmlFor="rawg-key">Temporary RAWG API key</label><input id="rawg-key" type="password" autoComplete="off" value={keyInput} onChange={e => setKeyInput(e.target.value)} required/><button className="expand-button" type="submit">Connect for this tab<ArrowUpRight size={16}/></button></form><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">Get a key from RAWG ↗</a><button className="demo-button" onClick={() => { setProvider(defaultProvider()); dialog.current?.close(); }}>{configuredRawgKey || proxyLive ? 'Use live RAWG data' : 'Continue with curated demo'}</button></dialog>
   </div>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);
