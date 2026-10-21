@@ -35,3 +35,22 @@ test('a full map makes no further API requests', async () => {
   try { assert.deepEqual(await createProvider('test-only').expand(catalog[0], Array.from({ length: 60 }, (_, i) => String(i)), 'all'), []); }
   finally { globalThis.fetch = original; }
 });
+
+test('proxy mode calls the same-origin function and never sends a key', async () => {
+  const original = globalThis.fetch;
+  const urls: URL[] = [];
+  globalThis.fetch = async input => {
+    urls.push(new URL(String(input), 'https://app.example'));
+    return new Response(JSON.stringify({ results: [{ id: 1, slug: 'game-1', name: 'Game 1', released: '2022-01-01' }] }), { status: 200 });
+  };
+  try {
+    const provider = createProvider('', { proxy: true });
+    assert.equal(provider.live, true);
+    const games = await provider.search('game');
+    assert.deepEqual(games.map(g => g.id), ['1']);
+    assert.equal(urls[0].origin, 'https://app.example');
+    assert.equal(urls[0].pathname, '/api/rawg');
+    assert.equal(urls[0].searchParams.get('path'), 'games');
+    assert.equal(urls[0].searchParams.has('key'), false);
+  } finally { globalThis.fetch = original; }
+});
