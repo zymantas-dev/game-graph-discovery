@@ -19,6 +19,7 @@ const Card = memo(function Card({ data }: NodeProps<GameNode>) {
 });
 const nodeTypes = { game: Card };
 const configuredRawgKey = import.meta.env.VITE_RAWG_API_KEY?.trim() ?? '';
+const envHint = <>Use a temporary key for this tab, or configure <code>VITE_RAWG_API_KEY</code> in <code>.env.local</code> to connect automatically whenever the demo starts.</>;
 const initialPositions = [{ x: 0, y: 0 }, { x: -310, y: -130 }, { x: 10, y: -245 }, { x: 310, y: -100 }, { x: 270, y: 180 }, { x: -290, y: 180 }];
 function makeNode(game: Game, position: { x: number; y: number }): GameNode { return { id: game.id, type: 'game', position, data: { game, active: false, saved: false }, ariaLabel: `Explore ${game.name}` }; }
 function loadSaved(): Game[] {
@@ -27,6 +28,10 @@ function loadSaved(): Game[] {
 function App() {
   const [proxyLive, setProxyLive] = useState(false);
   const [provider, setProvider] = useState(() => createProvider(configuredRawgKey));
+  // Env hints only make sense to a developer running `vite dev`; deployed visitors get plain-language copy.
+  const connectMessage = import.meta.env.DEV ? envHint : proxyLive
+    ? 'Live RAWG data is connected. You can also use your own RAWG key for this tab.'
+    : 'Live RAWG data is not enabled on this site, so you are exploring the curated demo. You can connect your own RAWG key for this tab.';
   const defaultProvider = () => createProvider(configuredRawgKey, { proxy: proxyLive });
   useEffect(() => {
     if (configuredRawgKey) return;
@@ -147,7 +152,7 @@ function App() {
     <div className="feedback" role="status" aria-live="polite">{error ? <><span className="error">{error}</span><button onClick={() => selected ? void explore(selected) : reset()}>Retry</button></> : <><span className={busy ? 'status-dot pulsing' : 'status-dot'}/>{busy ? 'Finding your next connection…' : status}</>}</div>
     {selected && <section className="trail" aria-label="Exploration trail"><span>YOUR TRAIL</span><div>{trail.map((game, index) => <React.Fragment key={game.id}>{index > 0 && <span className="trail-arrow">→</span>}<button disabled={busy} className={game.id === selected.id ? 'current' : ''} onClick={() => void explore(game)}>{game.name}</button></React.Fragment>)}</div><button className="clear-trail" disabled={busy} onClick={reset}>Start fresh<RotateCcw size={13}/></button></section>}
     <footer><span>Made for the joy of getting lost.</span><div><label htmlFor="appearance">DESIGN</label><select id="appearance" value={theme} onChange={e => setTheme(e.target.value)}><option value="observatory">01 / Observatory</option><option value="field-notes">02 / Field Notes</option><option value="blueprint">03 / Arcade Blueprint</option></select><a href="https://rawg.io" target="_blank" rel="noreferrer">{provider.live ? 'Data by RAWG' : 'Powered by curiosity · RAWG ready'}<ArrowUpRight size={12}/></a></div></footer></main>
-    <dialog ref={dialog} onClose={() => setKeyInput('')}><div className="dialog-heading"><h2>Connect your worlds.</h2><button aria-label="Close RAWG settings" onClick={() => dialog.current?.close()}><X size={20}/></button></div><p>Use a temporary key for this tab, or configure <code>VITE_RAWG_API_KEY</code> in <code>.env.local</code> to connect automatically whenever the demo starts.</p><form onSubmit={e => { e.preventDefault(); if (!keyInput.trim()) return; setProvider(createProvider(keyInput.trim())); setKeyInput(''); updateNodes([]); setConnections([]); dialog.current?.close(); }}><label htmlFor="rawg-key">Temporary RAWG API key</label><input id="rawg-key" type="password" autoComplete="off" value={keyInput} onChange={e => setKeyInput(e.target.value)} required/><button className="expand-button" type="submit">Connect for this tab<ArrowUpRight size={16}/></button></form><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">Get a key from RAWG ↗</a><button className="demo-button" onClick={() => { setProvider(defaultProvider()); dialog.current?.close(); }}>{configuredRawgKey || proxyLive ? 'Use live RAWG data' : 'Continue with curated demo'}</button></dialog>
+    <dialog ref={dialog} onClose={() => setKeyInput('')}><div className="dialog-heading"><h2>Connect your worlds.</h2><button aria-label="Close RAWG settings" onClick={() => dialog.current?.close()}><X size={20}/></button></div><p>{connectMessage}</p><form onSubmit={e => { e.preventDefault(); if (!keyInput.trim()) return; setProvider(createProvider(keyInput.trim())); setKeyInput(''); updateNodes([]); setConnections([]); dialog.current?.close(); }}><label htmlFor="rawg-key">Temporary RAWG API key</label><input id="rawg-key" type="password" autoComplete="off" value={keyInput} onChange={e => setKeyInput(e.target.value)} required/><button className="expand-button" type="submit">Connect for this tab<ArrowUpRight size={16}/></button></form><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">Get a key from RAWG ↗</a><button className="demo-button" onClick={() => { setProvider(defaultProvider()); dialog.current?.close(); }}>{configuredRawgKey || proxyLive ? 'Use live RAWG data' : 'Continue with curated demo'}</button></dialog>
   </div>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);
